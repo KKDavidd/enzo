@@ -151,6 +151,13 @@ function renderSettings(settings) {
     document.getElementById("header-call-link").href = `tel:${remote.phone || DEFAULT_SETTINGS.phone}`;
   }
   if (heroImg && remote.heroPhotoUrl) {
+    const heroVisual = document.getElementById("hero-visual");
+    heroImg.onload = () => {
+      if (heroVisual) heroVisual.hidden = false;
+    };
+    heroImg.onerror = () => {
+      if (heroVisual) heroVisual.hidden = true;
+    };
     heroImg.src = resolveImageUrl(remote.heroPhotoUrl);
   }
 }
