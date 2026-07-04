@@ -16,6 +16,7 @@ export type Product = {
   tags?: string[];
   order: number;
   active: boolean;
+  outOfStock?: boolean;
   imageUrl?: string;
 };
 

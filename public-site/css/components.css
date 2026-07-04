@@ -46,15 +46,47 @@
 }
 
 .menu-item {
+  position: relative;
   background: var(--color-char-soft);
   border: 1px solid var(--color-char-line);
   border-radius: var(--radius-md);
   padding: 1.4rem 1.5rem;
   transition: border-color 0.18s var(--ease-out), transform 0.18s var(--ease-out);
+  overflow: hidden;
 }
 .menu-item:hover {
   border-color: var(--color-cheese);
   transform: translateY(-2px);
+}
+
+.menu-item-out {
+  border-color: rgba(220, 60, 50, 0.35);
+}
+.menu-item-out .menu-item-head,
+.menu-item-out .menu-item-desc,
+.menu-item-out .menu-item-tags {
+  opacity: 0.45;
+}
+
+.out-of-stock-stamp {
+  position: absolute;
+  top: 52%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-18deg);
+  font-family: var(--font-mono);
+  font-weight: 800;
+  font-size: 1.5rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(220, 60, 50, 0.85);
+  border: 3px solid rgba(220, 60, 50, 0.85);
+  border-radius: 6px;
+  padding: 0.15rem 0.9rem;
+  background: rgba(20, 20, 20, 0.35);
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 2;
+  box-shadow: 0 0 0 1px rgba(220, 60, 50, 0.15);
 }
 
 .menu-item-head {
@@ -177,6 +209,9 @@
 
 .menu-group, .review-card {
   animation: fadeUp 0.5s var(--ease-out) both;
+}
+.menu-group-static {
+  animation: none;
 }
 @keyframes fadeUp {
   from { opacity: 0; transform: translateY(14px); }

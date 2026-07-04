@@ -181,6 +181,7 @@ function ProductsPage() {
     price: p => p.price ?? 0,
     allergens: p => (p.allergens ?? []).length,
     active: p => (p.active ? 1 : 0),
+    outOfStock: p => (p.outOfStock ? 1 : 0),
     default: p => p.order ?? 0
   });
 
@@ -203,10 +204,11 @@ function ProductsPage() {
               h(SortableTh, { label: "Ár (Ft)", sortKey: "price", sort, setSort, className: "cell-price" }),
               h(SortableTh, { label: "Allergének", sortKey: "allergens", sort, setSort, className: "cell-allergens" }),
               h(SortableTh, { label: "Aktív", sortKey: "active", sort, setSort, className: "cell-checkbox" }),
+              h(SortableTh, { label: "Elfogyott", sortKey: "outOfStock", sort, setSort, className: "cell-checkbox" }),
               h("th", { className: "cell-actions" })
             )),
             h("tbody", null, ...sortedProducts.map(p =>
-              h("tr", { key: p.id, className: p.active ? "" : "row-inactive" },
+              h("tr", { key: p.id, className: [!p.active ? "row-inactive" : "", p.outOfStock ? "row-out-of-stock" : ""].filter(Boolean).join(" ") },
                 h("td", { "data-label": "Sorrend" }, h(NumberCell, { className: "cell-order", value: p.order, onSave: v => updateItem(p.id, { order: v }) })),
                 h("td", { "data-label": "Név" }, h(TextCell, { className: "cell-name", value: p.name, onSave: v => updateItem(p.id, { name: v }) })),
                 h("td", { "data-label": "Kategória" }, catOptions.length ? h(SelectCell, { value: p.categoryId, options: catOptions, onSave: v => updateItem(p.id, { categoryId: v }) }) : p.categoryId),
@@ -214,6 +216,7 @@ function ProductsPage() {
                 h("td", { "data-label": "Ár (Ft)" }, h(NumberCell, { className: "cell-price", value: p.price, min: 0, onSave: v => updateItem(p.id, { price: v }) })),
                 h("td", { "data-label": "Allergének" }, h(AllergenChipsCell, { selected: p.allergens ?? [], onSave: v => updateItem(p.id, { allergens: v }) })),
                 h("td", { className: "cell-checkbox", "data-label": "Aktív" }, h(CheckboxCell, { checked: p.active, onSave: v => updateItem(p.id, { active: v }) })),
+                h("td", { className: "cell-checkbox", "data-label": "Elfogyott" }, h(CheckboxCell, { checked: !!p.outOfStock, onSave: v => updateItem(p.id, { outOfStock: v }) })),
                 h("td", { className: "cell-actions" }, h("button", { className: "icon-btn", title: "Törlés", onClick: () => { if(confirm(`Törlöd: "${p.name}"?`)) removeItem(p.id); } }, "✕", h("span", { className: "btn-label" }, " Törlés")))
               )
             ))

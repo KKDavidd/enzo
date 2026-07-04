@@ -64,6 +64,8 @@ table.data-table { width: 100%; border-collapse: collapse; background: var(--col
 .cell-checkbox { width: 60px; text-align: center; }
 .cell-actions { width: 50px; text-align: center; }
 .row-inactive { opacity: 0.45; }
+.row-out-of-stock:not(.row-inactive) { background: rgba(220, 60, 50, 0.08); }
+.row-out-of-stock:not(.row-inactive) .cell-name { color: #dc3c32; }
 .allergen-chips { display: flex; flex-wrap: wrap; gap: 4px; max-width: 210px; }
 .allergen-chip { font-family: var(--font-mono); font-size: 0.68rem; width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center; padding: 0; border-radius: 50%; background: transparent; color: rgba(169, 160, 146, 0.4); border: 1px solid rgba(169, 160, 146, 0.18); cursor: pointer; }
 .allergen-chip:hover { border-color: var(--color-cheese); color: var(--color-cheese); }

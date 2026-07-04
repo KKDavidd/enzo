@@ -68,12 +68,17 @@ export function ProductsPage() {
                 <th className="cell-price">Ár utótag</th>
                 <th className="cell-allergens">Allergének</th>
                 <th className="cell-checkbox">Aktív</th>
+                <th className="cell-checkbox">Elfogyott</th>
                 <th className="cell-actions"></th>
               </tr>
             </thead>
             <tbody>
               {products.map((p) => (
-                <tr key={p.id} className={p.active ? "" : "row-inactive"} title={!p.active ? "Inaktív — nem jelenik meg a weboldalon" : undefined}>
+                <tr
+                  key={p.id}
+                  className={[!p.active ? "row-inactive" : "", p.outOfStock ? "row-out-of-stock" : ""].filter(Boolean).join(" ")}
+                  title={!p.active ? "Inaktív — nem jelenik meg a weboldalon" : (p.outOfStock ? "Elfogyott — a weboldalon 'Elfogyott' jelöléssel jelenik meg" : undefined)}
+                >
                   <td>
                     <NumberCell className="cell-order" value={p.order} onSave={(v) => updateItem(p.id, { order: v } as Partial<Product>)} />
                   </td>
@@ -105,6 +110,9 @@ export function ProductsPage() {
                   </td>
                   <td className="cell-checkbox">
                     <CheckboxCell checked={p.active} onSave={(v) => updateItem(p.id, { active: v } as Partial<Product>)} />
+                  </td>
+                  <td className="cell-checkbox">
+                    <CheckboxCell checked={p.outOfStock ?? false} onSave={(v) => updateItem(p.id, { outOfStock: v } as Partial<Product>)} />
                   </td>
                   <td className="cell-actions">
                     <button className="icon-btn" title="Törlés" onClick={() => handleDelete(p.id, p.name)}>✕</button>

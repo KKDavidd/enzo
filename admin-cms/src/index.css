@@ -238,6 +238,8 @@ table.data-table {
 .cell-actions { width: 50px; text-align: center; }
 
 .row-inactive { opacity: 0.45; }
+.row-out-of-stock:not(.row-inactive) { background: rgba(220, 60, 50, 0.08); }
+.row-out-of-stock:not(.row-inactive) .cell-name { color: #dc3c32; }
 
 .allergen-chips {
   display: flex;

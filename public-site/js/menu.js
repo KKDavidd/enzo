@@ -1,12 +1,10 @@
 import { db } from "./firebase-config.js";
 import {
   collection,
-  getDocs,
   query,
-  where,
   orderBy,
   doc,
-  getDoc
+  onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js"
 
 const DEFAULT_ALLERGENS = {
@@ -46,8 +44,9 @@ function renderMenuItem(product) {
     ? `(${product.allergens.join(",")})`
     : "";
 
-  const card = el("article", "menu-item");
+  const card = el("article", "menu-item" + (product.outOfStock ? " menu-item-out" : ""));
   card.innerHTML = `
+    ${product.outOfStock ? `<span class="out-of-stock-stamp">Elfogyott</span>` : ""}
     <div class="menu-item-head">
       <p class="menu-item-name">${escapeHtml(product.name || "")}
         ${allergensLabel ? `<span class="menu-item-allergens">${allergensLabel}</span>` : ""}
@@ -77,51 +76,18 @@ function slugify(str) {
     .replace(/(^-|-$)/g, "");
 }
 
-async function loadAllergenOverrides() {
-  try {
-    const snap = await getDoc(doc(db, "settings", "allergens"));
-    if (snap.exists() && snap.data().list) {
-      return { ...DEFAULT_ALLERGENS, ...snap.data().list };
-    }
-  } catch (err) {
-    console.warn("Allergén lista betöltése sikertelen, alapértelmezett lista használata.", err);
-  }
-  return DEFAULT_ALLERGENS;
-}
-
-async function loadCategories() {
-  const q = query(collection(db, "categories"), orderBy("order", "asc"));
-  const snap = await getDocs(q);
-  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
-}
-
-async function loadProducts() {
-  try {
-    
-    const q = query(
-      collection(db, "products"),
-      where("active", "==", true),
-      orderBy("order", "asc")
-    );
-    const snap = await getDocs(q);
-    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
-  } catch (err) {
-    
-    
-    console.warn("Összetett index hiányzik, kliens oldali szűrés használata:", err);
-    const q = query(collection(db, "products"), orderBy("order", "asc"));
-    const snap = await getDocs(q);
-    return snap.docs
-      .map(d => ({ id: d.id, ...d.data() }))
-      .filter(p => p.active !== false);
-  }
-}
-
-function buildMenuDOM(categories, productsByCategory) {
+function buildMenuDOM(categories, productsByCategory, isFirstRender) {
   const tabsNode = document.getElementById("menu-tabs");
   const contentNode = document.getElementById("menu-content");
+
+  
+  const previouslySelectedTab = tabsNode.querySelector('.tab-btn[aria-selected="true"]');
+  const previousSelectedId = previouslySelectedTab ? previouslySelectedTab.id : null;
+
   tabsNode.innerHTML = "";
   contentNode.innerHTML = "";
+
+  let restoredSelection = false;
 
   categories.forEach((cat, idx) => {
     const items = productsByCategory[cat.id] || [];
@@ -129,6 +95,8 @@ function buildMenuDOM(categories, productsByCategory) {
 
     const tabId = `tab-${slugify(cat.name)}`;
     const panelId = `panel-${slugify(cat.name)}`;
+    const shouldSelect = previousSelectedId ? tabId === previousSelectedId : idx === 0;
+    if (shouldSelect) restoredSelection = true;
 
     
     const tabBtn = el("button", "tab-btn", cat.name);
@@ -136,7 +104,7 @@ function buildMenuDOM(categories, productsByCategory) {
     tabBtn.type = "button";
     tabBtn.setAttribute("role", "tab");
     tabBtn.setAttribute("aria-controls", panelId);
-    tabBtn.setAttribute("aria-selected", idx === 0 ? "true" : "false");
+    tabBtn.setAttribute("aria-selected", shouldSelect ? "true" : "false");
     tabBtn.addEventListener("click", () => {
       document.getElementById(panelId)?.scrollIntoView({ behavior: "smooth", block: "start" });
       tabsNode.querySelectorAll(".tab-btn").forEach(b => b.setAttribute("aria-selected", "false"));
@@ -145,11 +113,11 @@ function buildMenuDOM(categories, productsByCategory) {
     tabsNode.appendChild(tabBtn);
 
     
-    const group = el("div", "menu-group");
+    const group = el("div", isFirstRender ? "menu-group" : "menu-group menu-group-static");
     group.id = panelId;
     group.setAttribute("role", "tabpanel");
     group.setAttribute("aria-labelledby", tabId);
-    group.style.animationDelay = `${Math.min(idx * 0.05, 0.3)}s`;
+    if (isFirstRender) group.style.animationDelay = `${Math.min(idx * 0.05, 0.3)}s`;
 
     const titleHtml = cat.note
       ? `${escapeHtml(cat.name)} <small style="font-family:var(--font-mono);font-size:0.7rem;color:var(--color-cream-dim);text-transform:none;">${escapeHtml(cat.note)}</small>`
@@ -162,43 +130,83 @@ function buildMenuDOM(categories, productsByCategory) {
 
     contentNode.appendChild(group);
   });
+
+  
+  if (!restoredSelection) {
+    const firstTab = tabsNode.querySelector(".tab-btn");
+    if (firstTab) firstTab.setAttribute("aria-selected", "true");
+  }
 }
 
-export async function initMenu() {
+export function initMenu() {
   const loadingNode = document.getElementById("menu-loading");
   const contentNode = document.getElementById("menu-content");
   const emptyNode = document.getElementById("menu-empty");
 
-  try {
-    const [categories, products, allergenMap] = await Promise.all([
-      loadCategories(),
-      loadProducts(),
-      loadAllergenOverrides()
-    ]);
+  const state = {
+    categories: null,
+    products: null,
+    allergenMap: DEFAULT_ALLERGENS
+  };
+  let hasRenderedOnce = false;
+
+  function render() {
+    if (!state.categories || !state.products) return;
 
     const productsByCategory = {};
-    products.forEach(p => {
+    state.products.forEach(p => {
       if (!p.categoryId) return;
       (productsByCategory[p.categoryId] ||= []).push(p);
     });
 
-    const hasAnyItems = categories.some(c => (productsByCategory[c.id] || []).length > 0);
+    const hasAnyItems = state.categories.some(c => (productsByCategory[c.id] || []).length > 0);
 
     if (!hasAnyItems) {
       loadingNode.hidden = true;
+      contentNode.hidden = true;
       emptyNode.hidden = false;
       return;
     }
 
-    buildMenuDOM(categories, productsByCategory);
-    renderAllergenLegend(allergenMap);
+    buildMenuDOM(state.categories, productsByCategory, !hasRenderedOnce);
+    hasRenderedOnce = true;
+    renderAllergenLegend(state.allergenMap);
 
     loadingNode.hidden = true;
+    emptyNode.hidden = true;
     contentNode.hidden = false;
-  } catch (err) {
+  }
+
+  function handleError(err) {
     console.error("Menü betöltési hiba:", err);
     loadingNode.hidden = true;
     if (contentNode) contentNode.hidden = true;
     emptyNode.hidden = false;
   }
+
+  
+  const categoriesQuery = query(collection(db, "categories"), orderBy("order", "asc"));
+  onSnapshot(categoriesQuery, snap => {
+    state.categories = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    render();
+  }, handleError);
+
+  
+  const productsQuery = query(collection(db, "products"), orderBy("order", "asc"));
+  onSnapshot(productsQuery, snap => {
+    state.products = snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .filter(p => p.active !== false);
+    render();
+  }, handleError);
+
+  
+  onSnapshot(doc(db, "settings", "allergens"), snap => {
+    state.allergenMap = (snap.exists() && snap.data().list)
+      ? { ...DEFAULT_ALLERGENS, ...snap.data().list }
+      : DEFAULT_ALLERGENS;
+    render();
+  }, err => {
+    console.warn("Allergén lista figyelése sikertelen, alapértelmezett lista használata.", err);
+  });
 }
